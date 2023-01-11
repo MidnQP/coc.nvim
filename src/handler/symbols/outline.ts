@@ -146,6 +146,9 @@ export default class SymbolsOutline {
   }
 
   private setMessage(bufnr: number, msg: string | undefined): void {
+    if (msg) {
+      // msg=msg.replace(/OUTLINE Position/g, '')
+    }
     this.treeViewList.forEach(v => {
       if (v.valid && v.targetBufnr == bufnr) {
         v.message = msg
@@ -271,7 +274,10 @@ export default class SymbolsOutline {
       })
       let sortBy = this.getSortBy(bufnr)
       let prev: OutlineNode | undefined
-      treeView.description = `${sortBy[0].toUpperCase()}${sortBy.slice(1)}`
+      treeView.description=''
+      treeView.message=''
+      treeView.title = ''
+      // treeView.description = `${sortBy[0].toUpperCase()}${sortBy.slice(1)}`
       this.treeViewList.push(treeView)
       let disposable = events.on('BufEnter', bufnr => {
         if (previewBufnr && bufnr !== previewBufnr) {
