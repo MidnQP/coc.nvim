@@ -178,7 +178,7 @@ export default class SymbolsOutline {
 
     class DummyError extends Error {
       public toString() {
-        return  ''
+        return ''
       }
     }
 
@@ -191,7 +191,7 @@ export default class SymbolsOutline {
         let doc = workspace.getDocument(bufnr)
         if (!languages.hasProvider(ProviderName.DocumentSymbol, doc.textDocument)) {
           // throw new Error('Document symbol provider not found')
-           throw new DummyError()
+          throw new DummyError()
         }
         let meta = languages.getDocumentSymbolMetadata(doc.textDocument)
         if (meta && meta.label) {
@@ -203,7 +203,7 @@ export default class SymbolsOutline {
         if (!arr || arr.length == 0) {
           // server may return empty symbols on buffer initialize, throw error to force reload.
           // throw new Error('Empty symbols returned from language server. ')
-           throw new DummyError()
+          throw new DummyError()
         }
         this.setMessage(bufnr, undefined)
         return this.convertSymbols(bufnr, arr)
@@ -281,10 +281,9 @@ export default class SymbolsOutline {
       })
       let sortBy = this.getSortBy(bufnr)
       let prev: OutlineNode | undefined
-      treeView.description=''
-      treeView.message=''
-      treeView.title = ''
-      // treeView.description = `${sortBy[0].toUpperCase()}${sortBy.slice(1)}`
+      treeView.title = '\n'
+      treeView.description='\n'
+      //treeView.description = `${sortBy[0].toUpperCase()}${sortBy.slice(1)}`
       this.treeViewList.push(treeView)
       let disposable = events.on('BufEnter', bufnr => {
         if (previewBufnr && bufnr !== previewBufnr) {
