@@ -4,10 +4,11 @@ Author Qiming Zhao <chemzqm@gmail> (https://github.com/chemzqm)
 *******************************************************************/
 
 /// <reference types="node" />
-import cp from 'child_process'
-import { URL } from 'url'
 
 declare module 'coc.nvim' {
+  import cp from 'child_process'
+  import { URL } from 'url'
+
   // language server types {{
   /**
    * A tagging type for string properties that are actually document URIs.
@@ -5427,7 +5428,7 @@ declare module 'coc.nvim' {
     /**
      * Project-wide search for a symbol matching the given query string. It is up to the provider
      * how to search given the query string, like substring, indexOf etc. To improve performance implementors can
-     * skip the [location](#SymbolInformation.location) of symbols and implement `resolveWorkspaceSymbol` to do that
+     * skip the [location](#WorkspaceSymbol.location) of symbols and implement `resolveWorkspaceSymbol` to do that
      * later.
      *
      * The `query`-parameter should be interpreted in a *relaxed way* as the editor will apply its own highlighting
@@ -5443,10 +5444,10 @@ declare module 'coc.nvim' {
     provideWorkspaceSymbols(
       query: string,
       token: CancellationToken
-    ): ProviderResult<SymbolInformation[]>
+    ): ProviderResult<WorkspaceSymbol[]>
 
     /**
-     * Given a symbol fill in its [location](#SymbolInformation.location). This method is called whenever a symbol
+     * Given a symbol fill in its [location](#WorkspaceSymbol.location). This method is called whenever a symbol
      * is selected in the UI. Providers can implement this method and return incomplete symbols from
      * [`provideWorkspaceSymbols`](#WorkspaceSymbolProvider.provideWorkspaceSymbols) which often helps to improve
      * performance.
@@ -5458,9 +5459,9 @@ declare module 'coc.nvim' {
      * the given `symbol` is used.
      */
     resolveWorkspaceSymbol?(
-      symbol: SymbolInformation,
+      symbol: WorkspaceSymbol,
       token: CancellationToken
-    ): ProviderResult<SymbolInformation>
+    ): ProviderResult<WorkspaceSymbol>
   }
 
   /**
@@ -6633,6 +6634,7 @@ declare module 'coc.nvim' {
     uid?: number
     gid?: number
     windowsHide?: boolean
+    encoding?: string
   }
 
   /**
@@ -6651,9 +6653,15 @@ declare module 'coc.nvim' {
   export function wait(ms: number): Promise<any>
 
   /**
-   * Run command with `child_process.exec`
+   * Run command with `child_process.exec`, CancellationError is rejected when timeout or cancelled.
+   *
+   * @param {string} cmd
+   * @param {ExecOptions} opts - Execute options, encoding is used by
+   * iconv-lite for decode stdout buffer to string, default to 'utf8'
+   * @param {number | CancellationToken} timeout - Timeout in seconds or Cancellation token.
+   * @returns {Promise<string>}
    */
-  export function runCommand(cmd: string, opts?: ExecOptions, timeout?: number): Promise<string>
+  export function runCommand(cmd: string, opts?: ExecOptions, timeout?: number | CancellationToken): Promise<string>
 
   /**
    * Check if process with pid is running
@@ -6778,12 +6786,12 @@ declare module 'coc.nvim' {
     /**
      * Show locations by location list or vim's quickfix list.
      */
-    export function executeCommand(command: 'editor.action.showReferences', filepath: string | undefined, position: Position | undefined, locations: Location[]): Promise<void>
+    export function executeCommand(command: 'editor.action.showReferences', uri: string | Uri, position: Position | undefined, locations: Location[]): Promise<void>
 
     /**
      * Invoke rename action at position of specified uri.
      */
-    export function executeCommand(command: 'editor.action.rename', uri: string, position: Position): Promise<void>
+    export function executeCommand(command: 'editor.action.rename', uri: string | Uri, position: Position, newName?: string): Promise<void>
 
     /**
      * Run format action for current buffer.
@@ -7187,7 +7195,7 @@ declare module 'coc.nvim' {
      * @param codeActionKinds Optional supported code action kinds.
      * @return A [disposable](#Disposable) that unregisters this provider when being disposed.
      */
-    export function registerCodeActionProvider(selector: DocumentSelector, provider: CodeActionProvider, clientId: string | undefined, codeActionKinds?: string[]): Disposable
+    export function registerCodeActionProvider(selector: DocumentSelector, provider: CodeActionProvider, clientId: string | undefined, codeActionKinds?: ReadonlyArray<string>): Disposable
 
     /**
      * Register a hover provider.
@@ -8948,7 +8956,7 @@ declare module 'coc.nvim' {
     /**
      * Get WorkspaceFolder of uri
      */
-    export function getWorkspaceFolder(uri: string): WorkspaceFolder | undefined
+    export function getWorkspaceFolder(uri: string | Uri): WorkspaceFolder | undefined
 
     /**
      * Get content from buffer or file by uri.
@@ -9048,9 +9056,10 @@ declare module 'coc.nvim' {
      * @param {string} rhs - rhs of key-mapping.
      * @param {Function} fn - callback function.
      * @param {number | boolean} buffer - Buffer number or current buffer by use `true`, default to false.
+     * @param {boolean} cancel - Cancel pupop menu before invoke callback, insert mode only, define to true.
      * @returns {Disposable}
      */
-    export function registerExprKeymap(mode: MapMode, rhs: string, fn: () => ProviderResult<string>, buffer?: number | boolean): Disposable
+    export function registerExprKeymap(mode: MapMode, rhs: string, fn: () => ProviderResult<string>, buffer?: number | boolean, cancel?: boolean): Disposable
 
     /**
      * Register local keymap with callback.
@@ -9501,6 +9510,10 @@ declare module 'coc.nvim' {
      * An optional title.
      */
     title: string | undefined
+    /**
+     * An optional placeholder text.
+     */
+    placeholder: string | undefined
     /**
      * If the UI should show a progress indicator. Defaults to false.
      *
@@ -11375,7 +11388,7 @@ declare module 'coc.nvim' {
   }
 
   export interface ProvideWorkspaceSymbolsSignature {
-    (this: void, query: string, token: CancellationToken): ProviderResult<SymbolInformation[]>
+    (this: void, query: string, token: CancellationToken): ProviderResult<WorkspaceSymbol[]>
   }
 
   export interface ProvideCodeActionsSignature {
@@ -11522,7 +11535,7 @@ declare module 'coc.nvim' {
     }, token: CancellationToken, next: ProvideReferencesSignature) => ProviderResult<Location[]>
     provideDocumentHighlights?: (this: void, document: LinesTextDocument, position: Position, token: CancellationToken, next: ProvideDocumentHighlightsSignature) => ProviderResult<DocumentHighlight[]>
     provideDocumentSymbols?: (this: void, document: LinesTextDocument, token: CancellationToken, next: ProvideDocumentSymbolsSignature) => ProviderResult<SymbolInformation[] | DocumentSymbol[]>
-    provideWorkspaceSymbols?: (this: void, query: string, token: CancellationToken, next: ProvideWorkspaceSymbolsSignature) => ProviderResult<SymbolInformation[]>
+    provideWorkspaceSymbols?: (this: void, query: string, token: CancellationToken, next: ProvideWorkspaceSymbolsSignature) => ProviderResult<WorkspaceSymbol[]>
     provideCodeActions?: (this: void, document: LinesTextDocument, range: Range, context: CodeActionContext, token: CancellationToken, next: ProvideCodeActionsSignature) => ProviderResult<(Command | CodeAction)[]>
     handleWorkDoneProgress?: (this: void, token: ProgressToken, params: WorkDoneProgressBegin | WorkDoneProgressReport | WorkDoneProgressEnd, next: HandleWorkDoneProgressSignature) => void
     resolveCodeAction?: (this: void, item: CodeAction, token: CancellationToken, next: ResolveCodeActionSignature) => ProviderResult<CodeAction>
@@ -12257,7 +12270,7 @@ declare module 'coc.nvim' {
     registerFeature(feature: StaticFeature | DynamicFeature<any>): void
 
     /**
-     * Log failed request to outputChannel.
+     * Log failed request to outputChannel and throw error when necessary.
      */
     handleFailedRequest<T, P extends { kind: string }>(type: P, token: CancellationToken | undefined, error: any, defaultValue: T)
   }

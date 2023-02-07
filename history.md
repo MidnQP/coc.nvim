@@ -1,3 +1,31 @@
+# 2023-01-30
+
+- Always show `cancellable` progress as notification without check
+  `notification.statusLineProgress`.
+
+# 2023-01-29
+
+- Exclude `source` actions when request code actions with range.
+- Any character can be used for channel name.
+
+# 2023-01-26
+
+- Add escape support to `coc#status()`.
+
+# 2023-01-24
+
+- Add `encoding` and `CancellationToken` support for `runCommand` function.
+
+# 2023-01-23
+
+- Make `vscode.open` command work with file uri.
+- Cancel option for `workspace.registerExprKeymap()`.
+- Support `suggest.filterOnBackspace` configuration.
+
+# 2023-01-22
+
+- `maxRestartCount` configuration for configured language server.
+
 # 2022-12-25
 
 - Create symbol tree from SymbolInformation list.

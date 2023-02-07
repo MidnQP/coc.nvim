@@ -1,7 +1,7 @@
 'use strict'
 import { Neovim } from '@chemzqm/neovim'
 import { CodeAction, CodeActionKind, Location, Position, Range, SymbolKind } from 'vscode-languageserver-types'
-import type { URI } from 'vscode-uri'
+import { URI } from 'vscode-uri'
 import commands from '../commands'
 import events from '../events'
 import languages, { ProviderName } from '../languages'
@@ -9,7 +9,7 @@ import { createLogger } from '../logger'
 import Document from '../model/document'
 import { StatusBarItem } from '../model/status'
 import { TextDocumentMatch } from '../types'
-import { disposeAll } from '../util'
+import { disposeAll, getConditionValue } from '../util'
 import { getSymbolKind } from '../util/convert'
 import { toObject } from '../util/object'
 import { CancellationToken, CancellationTokenSource, Disposable } from '../util/protocol'
@@ -39,6 +39,7 @@ import TypeHierarchy from './typeHierarchy'
 import { HandlerDelegate } from './types'
 import WorkspaceHandler from './workspace'
 const logger = createLogger('Handler')
+const requestTimeout = getConditionValue(500, 10)
 
 export interface CurrentState {
   doc: Document
@@ -139,8 +140,8 @@ export default class Handler implements HandlerDelegate {
       }
     }, true)
 
-    this.register('vscode.open', (url: string | URI) => {
-      this.nvim.call('coc#ui#open_url', url.toString(), true)
+    this.register('vscode.open', async (url: string | URI) => {
+      await workspace.openResource(url.toString())
     })
     this.register('editor.action.doCodeAction', async (action: CodeAction) => {
       await this.codeActions.applyCodeAction(action)
@@ -148,13 +149,17 @@ export default class Handler implements HandlerDelegate {
     this.register('editor.action.triggerParameterHints', async () => {
       await this.signature.triggerSignatureHelp()
     })
-    this.register('editor.action.showReferences', async (uri: string, position: Position, references: Location[]) => {
+    this.register('editor.action.showReferences', async (uri: string | URI, position: Position, references: Location[]) => {
       await workspace.jumpTo(uri, position)
       await workspace.showLocations(references)
     })
-    this.register('editor.action.rename', async (uri: string, position: Position, newName?: string) => {
+    this.register('editor.action.rename', async (uri: string | URI | [URI, Position], position: Position, newName?: string) => {
+      if (Array.isArray(uri)) {
+        position = uri[1]
+        uri = uri[0]
+      }
       await workspace.jumpTo(uri, position)
-      await this.rename.rename(newName)
+      return await this.rename.rename(newName)
     })
     this.register('editor.action.format', async () => {
       await this.format.formatCurrentBuffer()
@@ -214,9 +219,7 @@ export default class Handler implements HandlerDelegate {
       this.requestTokenSource.cancel()
       this.requestTokenSource.dispose()
     }
-    if (this.requestTimer) {
-      clearTimeout(this.requestTimer)
-    }
+    clearTimeout(this.requestTimer)
     let statusItem = this.requestStatusItem
     this.requestTokenSource = new CancellationTokenSource()
     let { token } = this.requestTokenSource
@@ -225,7 +228,7 @@ export default class Handler implements HandlerDelegate {
       statusItem.isProgress = false
       this.requestTimer = setTimeout(() => {
         statusItem.hide()
-      }, 500)
+      }, requestTimeout)
     })
     statusItem.isProgress = true
     statusItem.text = `requesting ${name}`
@@ -255,7 +258,7 @@ export default class Handler implements HandlerDelegate {
     let kindText = getSymbolKind(kind)
     let defaultIcon = typeof labels['default'] === 'string' ? labels['default'] : kindText[0].toLowerCase()
     let text = kindText == 'Unknown' ? '' : labels[kindText[0].toLowerCase() + kindText.slice(1)]
-    if (!text || typeof text !== 'string') text = defaultIcon
+    if (!text) text = defaultIcon
     return {
       text,
       hlGroup: kindText == 'Unknown' ? 'CocSymbolDefault' : `CocSymbol${kindText}`
@@ -274,7 +277,7 @@ export default class Handler implements HandlerDelegate {
   public async hasProvider(id: string): Promise<boolean> {
     let bufnr = await this.nvim.call('bufnr', '%') as number
     let doc = workspace.getDocument(bufnr)
-    if (!doc) return false
+    if (!doc || !doc.attached) return false
     return languages.hasProvider(id as ProviderName, doc.textDocument)
   }
 

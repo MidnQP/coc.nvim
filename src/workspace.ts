@@ -156,6 +156,7 @@ export class Workspace {
     })
     this.files.attach(nvim, env, window)
     this.contentProvider.attach(nvim)
+    this.registerTextDocumentContentProvider('output', channels.getProvider(nvim))
     this.keymaps.attach(nvim)
     this.autocmds.attach(nvim, env)
     this.watchers.attach(nvim, env)
@@ -420,8 +421,8 @@ export class Workspace {
   /**
    * Get WorkspaceFolder of uri
    */
-  public getWorkspaceFolder(uri: string): WorkspaceFolder | undefined {
-    return this.workspaceFolderControl.getWorkspaceFolder(URI.parse(uri))
+  public getWorkspaceFolder(uri: string | URI): WorkspaceFolder | undefined {
+    return this.workspaceFolderControl.getWorkspaceFolder(typeof uri === 'string' ? URI.parse(uri) : uri)
   }
 
   /**
@@ -477,8 +478,8 @@ export class Workspace {
     return this.keymaps.registerKeymap(modes, key, fn, opts)
   }
 
-  public registerExprKeymap(mode: 'i' | 'n' | 'v' | 's' | 'x', key: string, fn: Function, buffer = false): Disposable {
-    return this.keymaps.registerExprKeymap(mode, key, fn, buffer)
+  public registerExprKeymap(mode: 'i' | 'n' | 'v' | 's' | 'x', key: string, fn: Function, buffer = false, cancel = true): Disposable {
+    return this.keymaps.registerExprKeymap(mode, key, fn, buffer, cancel)
   }
 
   public registerLocalKeymap(bufnr: number, mode: LocalMode, key: string, fn: Function, notify = false): Disposable {
@@ -604,6 +605,7 @@ export class Workspace {
   }
 
   public dispose(): void {
+    channels.dispose()
     this.autocmds.dispose()
     this.statusLine.dispose()
     this.watchers.dispose()

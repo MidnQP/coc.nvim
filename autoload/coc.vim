@@ -1,5 +1,4 @@
 scriptencoding utf-8
-let g:coc#_context = {'start': 0, 'preselect': -1,'candidates': []}
 let g:coc_user_config = get(g:, 'coc_user_config', {})
 let g:coc_global_extensions = get(g:, 'coc_global_extensions', [])
 let g:coc_selected_text = ''
@@ -51,7 +50,7 @@ function! coc#_insert_key(method, key, ...) abort
 endfunction
 
 " used for statusline
-function! coc#status()
+function! coc#status(...)
   let info = get(b:, 'coc_diagnostic_info', {})
   let msgs = []
   if !empty(info) && get(info, 'error', 0)
@@ -60,7 +59,11 @@ function! coc#status()
   if !empty(info) && get(info, 'warning', 0)
     call add(msgs, s:warning_sign . info['warning'])
   endif
-  return coc#compat#trim(join(msgs, ' ') . ' ' . get(g:, 'coc_status', ''))
+  let status = get(g:, 'coc_status', '')
+  if get(a:, 1, 0)
+    let status = substitute(status, '%', '%%', 'g')
+  endif
+  return coc#compat#trim(join(msgs, ' ') . ' ' . status)
 endfunction
 
 function! coc#config(section, value)
@@ -68,6 +71,7 @@ function! coc#config(section, value)
   call coc#rpc#notify('updateConfig', [a:section, a:value])
 endfunction
 
+" Deprecated, use variable instead.
 function! coc#add_extension(...)
   if a:0 == 0 | return | endif
   call extend(g:coc_global_extensions, a:000)
@@ -108,25 +112,6 @@ function! coc#do_notify(id, method, result)
   endif
 endfunction
 
-" Deprecated, not used any more
-function! coc#_complete() abort
-  let items = get(g:coc#_context, 'candidates', [])
-  let preselect = get(g:coc#_context, 'preselect', -1)
-  let startcol = g:coc#_context.start + 1
-  if s:select_api && len(items) && preselect != -1
-    noa call complete(startcol, items)
-    call nvim_select_popupmenu_item(preselect, v:false, v:false, {})
-    " use <cmd> specific key to preselect item at once
-    call feedkeys("\<Cmd>\<CR>" , 'i')
-  else
-    if pumvisible()
-      let g:coc_disable_complete_done = 1
-    endif
-    call complete(startcol, items)
-  endif
-  return ''
-endfunction
-
 function! coc#start(...)
   call CocActionAsync('startCompletion', get(a:, 1, {}))
   return ''
@@ -143,4 +128,30 @@ endfunction
 
 function! coc#_select_confirm() abort
   return "\<C-r>=coc#pum#select_confirm()\<CR>"
+endfunction
+
+function! coc#_suggest_variables() abort
+  return {
+      \ 'disable': get(b:, 'coc_suggest_disable', 0),
+      \ 'disabled_sources': get(b:, 'coc_disabled_sources', []),
+      \ 'blacklist': get(b:, 'coc_suggest_blacklist', []),
+      \ }
+endfunction
+
+function! coc#_remote_fns(name)
+  let fns = ['init', 'complete', 'should_complete', 'refresh', 'get_startcol', 'on_complete', 'on_enter']
+  let res = []
+  for fn in fns
+    if exists('*coc#source#'.a:name.'#'.fn)
+      call add(res, fn)
+    endif
+  endfor
+  return res
+endfunction
+
+function! coc#_do_complete(name, opt, cb) abort
+  let handler = 'coc#source#'.a:name.'#complete'
+  let l:Cb = {res -> a:cb(v:null, res)}
+  let args = [a:opt, l:Cb]
+  call call(handler, args)
 endfunction

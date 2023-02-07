@@ -1,5 +1,6 @@
 import { Neovim } from '@chemzqm/neovim'
 import { CancellationToken, Disposable, Position, TextEdit } from 'vscode-languageserver-protocol'
+import commands from '../../commands'
 import completion, { Completion } from '../../completion'
 import { sortItems } from '../../completion/complete'
 import sources from '../../completion/sources'
@@ -8,7 +9,6 @@ import { WordDistance } from '../../completion/wordDistance'
 import events from '../../events'
 import { disposeAll, waitWithToken } from '../../util'
 import workspace from '../../workspace'
-import commands from '../../commands'
 import helper from '../helper'
 
 let nvim: Neovim
@@ -352,6 +352,19 @@ describe('completion', () => {
       completion.stop(true)
       spy.mockRestore()
     })
+
+    it('should disable filter on backspace', async () => {
+      helper.updateConfiguration('suggest.filterOnBackspace', false)
+      await create(['this', 'thoit'], true)
+      await nvim.input('this')
+      await helper.waitValue(() => {
+        return completion.activeItems.length
+      }, 1)
+      await nvim.input('<bs>')
+      await helper.waitValue(() => {
+        return completion.isActivated
+      }, false)
+    })
   })
 
   describe('suggest variables', () => {
@@ -366,7 +379,7 @@ describe('completion', () => {
       let doc = await workspace.document
       await doc.buffer.setVar('coc_suggest_disable', 1)
       await nvim.input('if')
-      await helper.wait(30)
+      await helper.wait(20)
       let visible = await pumvisible()
       expect(visible).toBe(false)
     })
@@ -375,7 +388,7 @@ describe('completion', () => {
       let doc = await workspace.document
       await doc.buffer.setVar('coc_disabled_sources', ['foo'])
       await nvim.input('if')
-      await helper.wait(30)
+      await helper.wait(20)
       let visible = await pumvisible()
       expect(visible).toBe(false)
     })
@@ -730,7 +743,6 @@ describe('completion', () => {
     })
 
     it('should not complete inComplete source when isIncomplete is false', async () => {
-      let lastOption: CompleteOption
       let source: ISource = {
         priority: 0,
         enable: true,
@@ -738,7 +750,6 @@ describe('completion', () => {
         sourceType: SourceType.Service,
         triggerCharacters: ['.'],
         doComplete: async (opt: CompleteOption) => {
-          lastOption = opt
           await helper.wait(30)
           if (opt.input.length <= 1) {
             return { isIncomplete: true, items: [{ word: 'foobar' }] }
@@ -809,6 +820,15 @@ describe('completion', () => {
       await helper.wait(10)
       await nvim.input('.')
       await helper.waitFor('getline', ['.'], 'foo.')
+    })
+
+    it('should filter on backspace', async () => {
+      await create(['foo', 'fbi'], true)
+      await nvim.input('fo')
+      await helper.waitValue(() => completion.activeItems.length, 1)
+      await helper.wait(10)
+      await nvim.input('<backspace>')
+      await helper.waitValue(() => completion.activeItems.length, 2)
     })
   })
 
@@ -885,7 +905,7 @@ describe('completion', () => {
         doComplete: (_opt: CompleteOption) => Promise.resolve({ items: [{ word: 'foo' }, { word: 'bar' }] }),
         onCompleteResolve: async (item, _opt, token) => {
           called = true
-          let res = await waitWithToken(100, token)
+          let res = await waitWithToken(200, token)
           cancelled = res
           item.info = 'info'
         }
@@ -1086,13 +1106,13 @@ describe('completion', () => {
           return Promise.resolve({ startcol: 0, items: [{ word: 'foo.bar' }] })
         }
       }
-      let disposable = sources.addSource(source)
+      disposables.push(sources.addSource(source))
       await nvim.setLine('foo.')
       await nvim.input('Ab')
       await helper.waitPopup()
-      let val = await nvim.getVar('coc#_context') as any
-      expect(val.start).toBe(0)
-      disposable.dispose()
+      await nvim.call('coc#pum#select_confirm')
+      let line = await nvim.line
+      expect(line).toBe('foo.bar')
     })
 
     it('should should complete items without input', async () => {

@@ -1,9 +1,10 @@
 'use strict'
-import { Disposable } from '../util/protocol'
 import type Documents from '../core/documents'
 import events from '../events'
 import { DidChangeTextDocumentParams } from '../types'
 import { disposeAll } from '../util'
+import { isVim } from '../util/constants'
+import { Disposable } from '../util/protocol'
 import type Document from './document'
 
 export interface SyncItem extends Disposable {
@@ -31,12 +32,14 @@ export default class BufferSync<T extends SyncItem> {
     documents.onDidCloseDocument(e => {
       this.delete(e.bufnr)
     }, null, disposables)
-    events.on('LinesChanged', bufnr => {
-      let o = this.itemsMap.get(bufnr)
-      if (o && typeof o.item.onTextChange == 'function') {
-        o.item.onTextChange()
-      }
-    }, null, disposables)
+    events.on('LinesChanged', this.onTextChange, this, disposables)
+  }
+
+  private onTextChange(bufnr: number): void {
+    let o = this.itemsMap.get(bufnr)
+    if (o && typeof o.item.onTextChange == 'function') {
+      o.item.onTextChange()
+    }
   }
 
   public get items(): ReadonlyArray<T> {

@@ -119,9 +119,9 @@ export class Dialogs {
    * Shows a selection list.
    */
   public async showQuickPick(itemsOrItemsPromise: Item[] | Promise<Item[]>, options: QuickPickOptions, token: CancellationToken): Promise<Item | Item[] | undefined> {
-    if (isFalsyOrEmpty(itemsOrItemsPromise)) return undefined
     options = defaultValue(options, {})
     const items = await Promise.resolve(itemsOrItemsPromise)
+    if (isFalsyOrEmpty(items)) return undefined
     let isText = items.some(s => typeof s === 'string')
     return await this.mutex.use(() => {
       return new Promise<Item | Item[] | undefined>((resolve, reject) => {
@@ -129,7 +129,7 @@ export class Dialogs {
         let quickpick = new QuickPick<QuickPickItem>(this.nvim, this.dialogPreference)
         quickpick.items = items.map(o => typeof o === 'string' ? { label: o } : o)
         quickpick.title = toText(options.title)
-        quickpick.placeHolder = options.placeholder
+        quickpick.placeholder = options.placeholder
         quickpick.canSelectMany = !!options.canPickMany
         quickpick.matchOnDescription = options.matchOnDescription
         quickpick.onDidFinish(items => {
