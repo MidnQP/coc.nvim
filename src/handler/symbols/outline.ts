@@ -146,9 +146,6 @@ export default class SymbolsOutline {
   }
 
   private setMessage(bufnr: number, msg: string | undefined): void {
-    if (msg) {
-      // msg=msg.replace(/OUTLINE Position/g, '')
-    }
     this.treeViewList.forEach(v => {
       if (v.valid && v.targetBufnr == bufnr) {
         v.message = msg
