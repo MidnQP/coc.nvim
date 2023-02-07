@@ -43,7 +43,11 @@ export default class CommandsList extends BasicList {
         data: { cmd: id, score: score(mruList, id) }
       })
     }
-    items.sort((a, b) => b.data.score - a.data.score)
+    items.sort((a,b) => {
+      if (a.filterText < b.filterText) return -1
+      else if (a.filterText > b.filterText) return 1
+      return 0
+    })
     return formatListItems(this.alignColumns, items)
   }
 
