@@ -150,9 +150,9 @@ export async function isGitIgnored(fullpath: string | undefined): Promise<boolea
   return false
 }
 
-function isFolderIgnored(folder: string, ignored: string[] | undefined): boolean {
+export function isFolderIgnored(folder: string, ignored: string[] | undefined): boolean {
   if (isFalsyOrEmpty(ignored)) return false
-  return ignored.some(p => minimatch(folder, p, { dot: true }))
+  return ignored.some(p => sameFile(p, folder) || minimatch(folder, p, { dot: true }))
 }
 
 export function resolveRoot(folder: string, subs: ReadonlyArray<string>, cwd?: string, bottomup = false, checkCwd = true, ignored: string[] = []): string | null {
@@ -191,13 +191,12 @@ export function checkFolder(dir: string, patterns: string[], token?: Cancellatio
     let disposable: Disposable | undefined
     if (token) {
       disposable = token.onCancellationRequested(() => {
-        gl.abort()
         reject(new CancellationError())
       })
     }
     let find = false
     let pattern = patterns.length == 1 ? patterns[0] : `{${patterns.join(',')}}`
-    let gl = glob(pattern, {
+    let gl = new glob.Glob(pattern, {
       nosort: true,
       ignore: ['node_modules/**', '.git/**'],
       dot: true,
@@ -211,7 +210,6 @@ export function checkFolder(dir: string, patterns: string[], token?: Cancellatio
     gl.on('match', () => {
       if (disposable) disposable.dispose()
       find = true
-      gl.abort()
       resolve(true)
     })
     gl.on('end', () => {

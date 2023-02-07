@@ -51,7 +51,7 @@ describe('workspace properties', () => {
     expect(workspaceFolder).toBeUndefined()
     let watchmanPath = workspace.getWatchmanPath()
     expect(watchmanPath == null || typeof watchmanPath === 'string').toBe(true)
-    let folder = workspace.getWorkspaceFolder(uri)
+    let folder = workspace.getWorkspaceFolder(URI.parse('lsp:/1'))
     expect(folder).toBeUndefined()
     let rootPath = await helper.doAction('currentWorkspacePath')
     expect(rootPath).toBe(process.cwd())
@@ -431,7 +431,7 @@ describe('workspace utility', () => {
   it('should register buffer expr keymap', async () => {
     let fn = () => '""'
     await nvim.input('i')
-    let disposable = workspace.registerExprKeymap('i', '"', fn, true)
+    let disposable = workspace.registerExprKeymap('i', '"', fn, true, false)
     await helper.wait(30)
     await nvim.call('feedkeys', ['"', 't'])
     await helper.wait(30)

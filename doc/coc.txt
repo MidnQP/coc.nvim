@@ -393,6 +393,14 @@ Features automatically work by default:~
 
 Most features could be toggled by |coc-configuration| and some vim variables.
 
+To disable all features that automatically work, use configuration:
+>
+    "suggest.autoTrigger": "none",
+    "diagnostic.enable": false,
+    "pullDiagnostic.onChange": false,
+    "signature.enable": false,
+    "inlayHint.enable": false,
+<
 Features require enabled by configuration:~
 
   • Semantic highlights |coc-semantic-highlights|.
@@ -1342,8 +1350,12 @@ Selection range function:~
 CODE LENS 						*coc-code-lens*
 
 Code lens feature shows additional information above or after specific lines.
-Works best on nvim >= 0.6.0 and vim >= 9.0.0438, on older vim, some
-configurations may not work or not work at all.
+Works best on nvim >= 0.6.0 and vim >= 9.0.0438. On older vim, some
+configurations may not work.
+
+CodeLens are not shown by default, use |coc-config-codeLens-enable| to enable,
+you may also need enable codeLens feature by configure extension or
+languageserver.
 
 Check if current buffer have code lens provider by
 `:echo CocAction('hasProvider', 'codeLens')`
@@ -1351,9 +1363,9 @@ Check if current buffer have code lens provider by
 To temporarily toggle codeLens of current buffer, use command
 `:CocCommand document.toggleCodeLens`
 
-Code lens are not shown by default, use |coc-config-codeLens-enable| to enable,
-you may also need enable code lens by configure extension or configured
-languageserver.
+To invoke command from codeLens, use |<Plug>(coc-codelens-action)|.
+
+Use |CocCodeLens| for highlight of codeLens virtual text.
 
 Code lens are automatically requested on buffer create/change, checkout
 |coc-config-codeLens| for available configurations.
@@ -1473,7 +1485,8 @@ with selected code. Works on both |visual-mode| and |normal-mode|.
 
 *<Plug>(coc-openlink)* Open link under cursor by use |CocAction('openlink')|.
 
-*<Plug>(coc-codelens-action)* Do command from codeLens of current line.
+*<Plug>(coc-codelens-action)* invoke command contributed by codeLens at the
+current line.
 
 *<Plug>(coc-fix-current)* Try first quickfix action for diagnostics of current
 line.
@@ -1586,7 +1599,6 @@ b:coc_root_patterns					*b:coc_root_patterns*
 	autocmd FileType python let b:coc_root_patterns =
 				\ ['.git', '.env']
 <
-
 b:coc_suggest_disable					*b:coc_suggest_disable*
 
 	Disable completion support of current buffer. Example: >
@@ -1600,10 +1612,6 @@ b:coc_disabled_sources 					*b:coc_disabled_sources*
 >
 	let b:coc_disabled_sources = ['around', 'buffer', 'file']
 <
-b:coc_diagnostic_disable				*b:coc_diagnostic_disable*
-
-	Disable diagnostic support of current buffer.
-
 b:coc_suggest_blacklist                 	        *b:coc_suggest_blacklist*
 
 	List of input words for which completion should not be triggered.
@@ -1692,7 +1700,7 @@ g:coc_uri_prefix_replace_patterns			*g:coc_uri_prefix_replace_patterns*
 <
 g:coc_enable_locationlist				*g:coc_enable_locationlist*
 
-	Use location list of |CocList| when jump to locations.
+	Use location list of |coc-list| when jump to locations.
 
 	Set it to 0 when you need customize behavior of location jump by use
 	|CocLocationsChange| and |g:coc_jump_locations|
@@ -1770,11 +1778,11 @@ g:coc_node_args						*g:coc_node_args*
 
 g:coc_status_error_sign					*g:coc_status_error_sign*
 
-	Error character used for statusline, default: `E`
+	Error character used by |coc#status()|, default: `E`
 
 g:coc_status_warning_sign				*g:coc_status_warning_sign*
 
-	Warning character used for statusline, default: `W`
+	Warning character used by |coc#status()|, default: `W`
 
 g:coc_quickfix_open_command				*g:coc_quickfix_open_command*
 
@@ -1952,6 +1960,10 @@ b:coc_snippet_active					*b:coc_snippet_active*
 	Is `1` when snippet session is activated, use |coc#jumpable| to check
 	if it's possible to jump placeholder.
 
+b:coc_diagnostic_disable				*b:coc_diagnostic_disable*
+
+	Disable diagnostic support of current buffer.
+
 b:coc_diagnostic_info					*b:coc_diagnostic_info*
 
 	Diagnostic information of current buffer, the format would look like:
@@ -1964,8 +1976,8 @@ b:coc_current_function					*b:coc_current_function*
 
 	Function string that current cursor in.
 
-	Set `"coc.preferences.currentFunctionSymbolAutoUpdate": true`
-	in coc-settings.json to update it on CursorHold.
+	Enable |coc-preferences-currentFunctionSymbolAutoUpdate| to update the
+	value on CursorHold.
 
 b:coc_cursors_activated					*b:coc_cursors_activated*
 
@@ -2033,18 +2045,6 @@ coc#config({section}, {value})				*coc#config()*
 	but it's not recommended to use both.
 	Note: use |g:coc_user_config| when you have coc.nvim lazy loaded.
 
-coc#add_extension({name}, ...)				*coc#add_extension()*
-
-	Deprecated function for install extensions not exists.
-	Use |g:coc_global_extensions| variable instead.
-
-	Example: >
-
-	call coc#add_extension('coc-json', 'coc-tsserver', 'coc-rls')
-<
-	This function can be called before service initialized.
-	This function can be called multiple times.
-
 coc#add_command({id}, {command}, [{title}])		*coc#add_command()*
 
 	Add custom Vim command to commands list opened by
@@ -2080,15 +2080,17 @@ coc#on_enter()						*coc#on_enter()*
 	inoremap <silent><expr> <CR> coc#pum#visible() ? coc#pum#confirm()
                     	          \: "\<C-g>u\<CR>\<c-r>=coc#on_enter()\<CR>"
 <
-	Note：to enable format on type, add ` "coc.preferences.formatOnType": true`
-	in your settings file.
+	To enable format on type, use |coc-preferences-formatOnType|
+	configuration.
 
-coc#status()						*coc#status()*
+coc#status([{escape}])					*coc#status()*
 
 	Return a status string that can be used in the status line, the status
-	includes diagnostic information from `b:coc_diagnostic_info` and
-	extension contributed statuses from `g:coc_status`. For statusline
-	integration, see |coc-status|
+	includes diagnostic information from |b:coc_diagnostic_info| and
+	extension contributed statuses from |g:coc_status|. For statusline
+	integration, see |coc-status|.
+
+	Escape '%' to '%%' when {escape} is truth value.
 
 coc#util#api_version() 					*coc#util#api_version()*
 
@@ -2123,8 +2125,8 @@ coc#util#root_patterns()				*coc#util#root_patterns()*
 <
 coc#util#get_config({key})				*coc#util#get_config()*
 
-	Get configuration (mostly defined in coc-settings.json)	by {key},
-	example: >
+	Get configuration of current document (mostly defined in
+	coc-settings.json) by {key}, example: >
 
 	:echo coc#util#get_config('coc.preferences')
 
@@ -2454,10 +2456,6 @@ Acceptable {action} names for |CocAction()| and |CocActionAsync()|.
 
 	Useful when `diagnostic.autoRefresh` is `false`.
 
-"refreshSource" [{source}]				*CocAction('refreshSource')*
-
-	refresh all sources or a source with a name of {source}.
-
 "sourceStat"						*CocAction('sourceStat')*
 
 	get the list of completion source stats for the current buffer.
@@ -2607,10 +2605,11 @@ Acceptable {action} names for |CocAction()| and |CocActionAsync()|.
 
 	Open refactor windows with current symbol as activated cursor ranges.
 	Check |coc-config-cursors| and |coc-config-refactor| for related
-	configuration.
+	configuration. Use |coc-config-workspace-openResourceCommand| for
+	command to open buffers on save.
 
 	Use <CR> to open buffer at current position in split window.
-	Use <Tab> to show action menu which have tab open and remove actions.
+	Use <Tab> to invoke tab open or remove action with current chunk.
 
 "format"						*CocAction('format')*
 
@@ -3095,7 +3094,7 @@ AUTOCMD							*coc-autocmds*
 
 :autocmd User CocStatusChange {command}
 
-	Triggered after `g:coc_status` changed, can be used for refresh
+	Triggered after |g:coc_status| changed, can be used for refresh
 	statusline.
 
 							*CocDiagnosticChange*
@@ -4132,7 +4131,7 @@ Check out https://github.com/neoclide/coc.nvim/wiki/F.A.Q
 ==============================================================================
 CHANGELOG						*coc-changelog*
 
-See history.md under project root.
+See ./history.md under project root.
 
 ==============================================================================
 vim:tw=78:nosta:noet:ts=8:sts=0:ft=help:noet:fen:

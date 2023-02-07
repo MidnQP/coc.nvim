@@ -3,10 +3,11 @@ import EventEmitter from 'events'
 import path from 'path'
 import { Range } from 'vscode-languageserver-types'
 import events from '../../events'
-import manager, { ListManager, createConfigurationNode } from '../../list/manager'
+import manager, { createConfigurationNode, ListManager } from '../../list/manager'
 import { IList } from '../../list/types'
 import { QuickfixItem } from '../../types'
 import { toArray } from '../../util/array'
+import { CancellationError } from '../../util/errors'
 import window from '../../window'
 import helper from '../helper'
 
@@ -337,6 +338,20 @@ describe('list', () => {
   })
 
   describe('loadItems()', () => {
+    it('should ignore cancellation error', async () => {
+      let list: IList = {
+        name: 'cancel',
+        actions: [{ name: 'open', execute: () => {} }],
+        defaultAction: 'open',
+        loadItems: () => Promise.reject(new CancellationError()),
+      }
+      let disposable = manager.registerList(list)
+      await manager.start(['cancel'])
+      disposable.dispose()
+      let line = await helper.getCmdline()
+      expect(line).toBe('')
+    })
+
     it('should load items for list', async () => {
       let res = await manager.loadItems('location')
       expect(res.length).toBeGreaterThan(0)
@@ -352,21 +367,25 @@ describe('list', () => {
         defaultAction: '',
         loadItems: () => {
           let emitter: any = new EventEmitter()
+          let interval
+          let timeout
           emitter.dispose = () => {
             emitter.removeAllListeners()
+            clearInterval(interval)
+            clearTimeout(timeout)
           }
           if (error) {
-            setTimeout(() => {
+            timeout = setTimeout(() => {
               emitter.emit('error', new Error('error'))
               emitter.emit('end')
             }, 2)
           } else {
-            setTimeout(() => {
+            timeout = setTimeout(() => {
               emitter.emit('data', { label: 'foo' })
               emitter.emit('end')
             }, 2)
           }
-          setInterval(() => {
+          interval = setInterval(() => {
             emitter.emit('data', { label: 'bar' })
             emitter.emit('error', new Error('error'))
           }, 10)
@@ -379,7 +398,7 @@ describe('list', () => {
       error = false
       res = await manager.loadItems('emitter')
       expect(res.length).toBe(1)
-      await helper.wait(10)
+      await helper.wait(50)
     })
   })
 
@@ -410,16 +429,16 @@ describe('list', () => {
     it('should ignore <plug> insert', async () => {
       await manager.start(['location'])
       await manager.session.ui.ready
-      await nvim.eval('feedkeys("\\<plug>x", "in")')
-      await helper.wait(20)
+      await helper.listInput('<plug>')
+      await helper.listInput('x')
       expect(manager.isActivated).toBe(true)
     })
   })
 
   describe('parseArgs()', () => {
     it('should show error for bad option', async () => {
-      await helper.wait(20)
       manager.parseArgs(['$x', 'location'])
+      await helper.wait(20)
       let msg = await helper.getCmdline()
       expect(msg).toMatch('Invalid list option')
       manager.parseArgs(['-xyz', 'location'])

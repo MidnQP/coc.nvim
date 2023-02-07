@@ -1363,7 +1363,7 @@ describe('Client integration', () => {
 
     const symbol = await provider.resolveWorkspaceSymbol!(results[0], tokenSource.token)
     isDefined(symbol)
-    rangeEqual(symbol.location.range, 1, 2, 3, 4)
+    rangeEqual(symbol.location['range'], 1, 2, 3, 4)
   })
 })
 
@@ -1648,7 +1648,7 @@ describe('Server activation', () => {
         return undefined
       }
     }))
-    await workspace.openTextDocument(uri)
+    await workspace.jumpTo(uri)
     await helper.doAction('declarations')
     await started
     await client.stop()

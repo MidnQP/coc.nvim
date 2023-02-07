@@ -108,7 +108,7 @@ describe('rename handler', () => {
 
     it('should use document symbols when prepare failed', async () => {
       let doc = await helper.createDocument('t.js')
-      await nvim.setLine('你')
+      await nvim.setLine('a')
       await doc.synchronize()
       let res = await rename.getWordEdit()
       expect(res != null).toBe(true)
@@ -142,8 +142,8 @@ describe('rename handler', () => {
     })
 
     it('should return false for invalid position', async () => {
-      await helper.createDocument('t.js')
-      let res = await rename.rename('foo')
+      let doc = await helper.createDocument('t.js')
+      let res = await commands.executeCommand('editor.action.rename', [doc.uri, Position.create(0, 0)])
       expect(res).toBe(false)
     })
 
@@ -174,6 +174,7 @@ describe('rename handler', () => {
     })
 
     it('should return false for empty name', async () => {
+      helper.updateConfiguration('coc.preferences.renameFillCurrent', false)
       await helper.createDocument('t.js')
       await nvim.setLine('foo foo foo')
       let p = rename.rename()

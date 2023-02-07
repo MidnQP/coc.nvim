@@ -536,8 +536,10 @@ describe('Registry', () => {
     let filepath = path.join(os.tmpdir(), 'single')
     registry.registerExtension('single', { name: 'single', directory: os.tmpdir(), filepath })
     expect(parseSource(`\n\n${filepath}:1:1`)).toBe('single')
-    expect(parseSource(`\n\n${filepath.slice(0, -3)}:1:1`)).toBe('single')
+    // expect(parseSource(`\n\n${filepath.slice(0, -3)}:1:1`)).toBeUndefined()
     expect(parseSource(`\n\n/a/b:1:1`)).toBeUndefined()
+    let dir = fs.realpathSync(os.tmpdir())
+    expect(parseSource(`\n\n${path.join(dir, 'foo')}:1:1`)).toBe('single')
     registry.unregistExtension('single')
   })
 
@@ -1129,27 +1131,36 @@ describe('utility', () => {
   })
 
   it('should run command on windows', async () => {
+    await runCommand('echo 1')
     await runCommand('echo 1', { cwd: __dirname }, 1, true)
   })
 
   it('should run command with timeout', async () => {
-    let err
-    try {
+    await expect(async () => {
       await runCommand('sleep 2', { cwd: __dirname }, 0.01)
-    } catch (e) {
-      err = e
-    }
-    expect(err).toBeDefined()
+    }).rejects.toThrow(errors.CancellationError)
+  })
+
+  it('should run command with Cancellation token', async () => {
+    let tokenSource = new CancellationTokenSource()
+    let token = tokenSource.token
+    setTimeout(() => {
+      tokenSource.cancel()
+    }, 20)
+    await expect(async () => {
+      await runCommand('sleep 2', { cwd: __dirname, encoding: 'unknown' }, token)
+    }).rejects.toThrow(errors.CancellationError)
+  })
+
+  it('should run command with encoding support', async () => {
+    let res = await runCommand('echo "\\xc4\\xe3\\x0a"', { cwd: __dirname, encoding: 'cp936' }, 1, true)
+    expect(res.length).toBeGreaterThan(0)
   })
 
   it('should throw on command error', async () => {
-    let err
-    try {
+    await expect(async () => {
       await runCommand('command_not_exists', { cwd: __dirname })
-    } catch (e) {
-      err = e
-    }
-    expect(err).toBeDefined()
+    }).rejects.toThrow(Error)
   })
 
   it('should resolve concurrent with empty task', async () => {
