@@ -146,9 +146,6 @@ export default class SymbolsOutline {
   }
 
   private setMessage(bufnr: number, msg: string | undefined): void {
-    if (msg && msg.startsWith("Error: ")) {
-      msg=''
-    }
     this.treeViewList.forEach(v => {
       if (v.valid && v.targetBufnr == bufnr) {
         v.message = msg
@@ -178,25 +175,35 @@ export default class SymbolsOutline {
 
   private createProvider(bufnr: number): BasicDataProvider<OutlineNode> {
     let { nvim } = this
+
+    class DummyError extends Error {
+      public toString() {
+        return  ''
+      }
+    }
+
     let provider = new BasicDataProvider({
       expandLevel: this.config.expandLevel,
       provideData: async () => {
         let buf = this.buffers.getItem(bufnr)
-        if (!buf) throw new Error('Document not attached')
+        // if (!buf) throw new Error('Document not attached')
+        if (!buf) throw new DummyError()
         let doc = workspace.getDocument(bufnr)
         if (!languages.hasProvider(ProviderName.DocumentSymbol, doc.textDocument)) {
-          throw new Error('Document symbol provider not found')
+          // throw new Error('Document symbol provider not found')
+           throw new DummyError()
         }
         let meta = languages.getDocumentSymbolMetadata(doc.textDocument)
         if (meta && meta.label) {
           let views = this.treeViewList.filter(v => v.valid && v.targetBufnr == bufnr)
           views.forEach(view => view.description = meta.label)
         }
-        this.setMessage(bufnr, 'Loading document symbols')
+        // this.setMessage(bufnr, 'Loading document symbols')
         let arr = await buf.getSymbols()
         if (!arr || arr.length == 0) {
           // server may return empty symbols on buffer initialize, throw error to force reload.
-          throw new Error('Empty symbols returned from language server. ')
+          // throw new Error('Empty symbols returned from language server. ')
+           throw new DummyError()
         }
         this.setMessage(bufnr, undefined)
         return this.convertSymbols(bufnr, arr)
